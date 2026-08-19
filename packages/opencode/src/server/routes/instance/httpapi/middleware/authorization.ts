@@ -10,6 +10,7 @@ export {
 } from "@opencode-ai/server/middleware/authorization"
 
 const AUTH_TOKEN_QUERY = "auth_token"
+const AUTH_TOKEN_COOKIE = "opencode_auth_token"
 const UNAUTHORIZED = 401
 const WWW_AUTHENTICATE = 'Basic realm="Secure Area"'
 
@@ -79,6 +80,18 @@ function credentialFromURL(url: URL, request: HttpServerRequest.HttpServerReques
   if (token) return decodeCredential(token)
   const match = /^Basic\s+(.+)$/i.exec(request.headers.authorization ?? "")
   if (match) return decodeCredential(match[1])
+  const cookie = request.headers.cookie
+    ?.split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(`${AUTH_TOKEN_COOKIE}=`))
+  if (cookie) {
+    const value = cookie.slice(AUTH_TOKEN_COOKIE.length + 1)
+    try {
+      return decodeCredential(decodeURIComponent(value))
+    } catch {
+      return Effect.succeed(emptyCredential())
+    }
+  }
   return Effect.succeed(emptyCredential())
 }
 

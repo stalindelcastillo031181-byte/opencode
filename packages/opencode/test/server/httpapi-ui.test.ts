@@ -421,6 +421,20 @@ describe("HttpApi UI fallback", () => {
     }),
   )
 
+  it.live("accepts the installed web app auth cookie", () =>
+    Effect.gen(function* () {
+      const response = yield* uiApp({
+        password: "secret",
+        username: "opencode",
+        disableEmbeddedWebUi: true,
+      }).request("/", {
+        headers: { cookie: `opencode_auth_token=${encodeURIComponent(btoa("opencode:secret"))}` },
+      })
+
+      expect(response.status).toBe(200)
+    }),
+  )
+
   // Regression for #25698 (Ope): the browser fetches the PWA manifest and
   // its icons via flows that don't carry app-managed credentials (the
   // `<link rel="manifest">` request is not under page-auth control), so the

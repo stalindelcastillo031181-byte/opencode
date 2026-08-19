@@ -68,6 +68,10 @@ if [ ! -s "$password_file" ]; then
   chmod 600 "$password_file"
 fi
 password="$(sed -n '1p' "$password_file")"
+auth_token="$(printf '%s' "$username:$password" | base64 | tr -d '\r\n')"
+auth_token_url="${auth_token//+/%2B}"
+auth_token_url="${auth_token_url//\//%2F}"
+auth_token_url="${auth_token_url//=/%3D}"
 
 for pid_file in "$server_pid_file" "$tunnel_pid_file"; do
   if [ ! -f "$pid_file" ]; then
@@ -129,10 +133,13 @@ if [ -z "$tunnel_url" ]; then
   exit 1
 fi
 
+iphone_url="${tunnel_url}/?auth_token=${auth_token_url}"
+
 printf '\nOPENCode móvil corregido está activo.\n'
-printf 'URL para el iPhone: %s\n' "$tunnel_url"
-printf 'Usuario: %s\n' "$username"
-printf 'Contraseña: %s\n' "$password"
+printf 'URL para Safari y el botón de inicio: %s\n' "$iphone_url"
+printf 'Esta URL inicia sesión automáticamente y conserva el acceso al añadirla a Inicio.\n'
+printf 'Usuario de emergencia: %s\n' "$username"
+printf 'Contraseña de emergencia: %s\n' "$password"
 printf '\nMantén esta terminal abierta. Pulsa Control+C para apagar el acceso remoto.\n'
 
 wait "$tunnel_pid"

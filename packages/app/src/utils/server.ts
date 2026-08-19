@@ -3,8 +3,14 @@ import { OpenCode, type OpenCodeClient } from "@opencode-ai/client/promise"
 import type { ServerConnection } from "@/context/server"
 import { decode64 } from "@/utils/base64"
 
+export const AUTH_TOKEN_COOKIE = "opencode_auth_token"
+
 export function authTokenFromCredentials(input: { username?: string; password: string }) {
   return btoa(`${input.username ?? "opencode"}:${input.password}`)
+}
+
+export function authCookieFromToken(token: string, secure: boolean) {
+  return `${AUTH_TOKEN_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=31536000; SameSite=Strict${secure ? "; Secure" : ""}`
 }
 
 export function authFromToken(token: string | null) {

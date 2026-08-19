@@ -8,7 +8,7 @@ import { type Platform, PlatformProvider } from "@/context/platform"
 import { createBrowserDraftStore } from "@/utils/draft-store"
 import { dict as en } from "@/i18n/en"
 import { dict as zh } from "@/i18n/zh"
-import { authFromToken } from "@/utils/server"
+import { authCookieFromToken, authFromToken } from "@/utils/server"
 import pkg from "../package.json"
 import { ServerConnection } from "./context/server"
 
@@ -151,7 +151,9 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 
 if (root instanceof HTMLElement) {
   void loadInitialLocale().then((locale) => {
-    const auth = authFromToken(new URLSearchParams(location.search).get("auth_token"))
+    const authToken = new URLSearchParams(location.search).get("auth_token")
+    const auth = authFromToken(authToken)
+    if (auth && authToken) document.cookie = authCookieFromToken(authToken, location.protocol === "https:")
     clearAuthToken()
     const server: ServerConnection.Http = {
       type: "http",
