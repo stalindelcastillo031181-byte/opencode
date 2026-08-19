@@ -76,6 +76,27 @@ test("shows the V2 thinking level control while relevant", async ({ page }) => {
 
   await idleComposer(page)
   await expect(control).toBeVisible()
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.addStyleTag({ content: ":root { font-size: 32px !important; }" })
+  const submit = composer.getByRole("button", { name: "Send" })
+  await expect(submit).toBeVisible()
+
+  const controls = await page.evaluate(() => {
+    const variant = document.querySelector<HTMLElement>('[aria-label="Choose model variant"]')!
+    const submit = document.querySelector<HTMLElement>('[data-action="prompt-submit"]')!
+    const variantRect = variant.getBoundingClientRect()
+    const submitRect = submit.getBoundingClientRect()
+    const hit = document.elementFromPoint(submitRect.left + submitRect.width / 2, submitRect.top + submitRect.height / 2)
+    return {
+      variantRight: variantRect.right,
+      submitLeft: submitRect.left,
+      submitHit: hit === submit || submit.contains(hit),
+    }
+  })
+
+  expect(controls.variantRight).toBeLessThanOrEqual(controls.submitLeft)
+  expect(controls.submitHit).toBe(true)
 })
 
 async function idleComposer(page: Page) {
