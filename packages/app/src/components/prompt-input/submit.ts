@@ -346,6 +346,13 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       })
       return
     }
+    if (images.length > 0 && !currentModel.capabilities.input.image) {
+      showToast({
+        title: language.t("prompt.toast.modelNoVision.title"),
+        description: language.t("prompt.toast.modelNoVision.description"),
+      })
+      return
+    }
 
     input.addToHistory(currentPrompt, mode)
     input.resetHistoryNavigation()

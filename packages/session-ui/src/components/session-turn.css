@@ -241,3 +241,23 @@ body:not([data-new-layout]) [data-component="session-turn"] {
 [data-slot="session-turn-list"] {
   gap: 24px;
 }
+
+@media (max-width: 767px) {
+  [data-component="session-turn"],
+  [data-component="session-turn"] [data-slot="session-turn-content"],
+  [data-component="session-turn"] [data-slot="session-turn-message-container"],
+  [data-component="session-turn"] [data-slot="session-turn-message-content"],
+  [data-component="session-turn"] [data-slot="session-turn-assistant-content"],
+  [data-component="session-turn"] [data-slot="session-turn-compaction"],
+  [data-component="session-turn"] [data-slot="session-turn-diffs"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  [data-component="session-turn"],
+  [data-component="session-turn"] [data-slot="session-turn-content"] {
+    overflow-x: hidden;
+  }
+}

@@ -356,3 +356,17 @@ body:not([data-new-layout]) {
     }
   }
 }
+
+@media (max-width: 767px) {
+  [data-component="tool-trigger"],
+  [data-component="task-tool-card"],
+  [data-component="task-tool-card"] [data-component="task-tool-surface"],
+  [data-component="tool-trigger"] [data-slot="basic-tool-tool-trigger-content"],
+  [data-component="tool-trigger"] [data-slot="basic-tool-tool-info"],
+  [data-component="tool-trigger"] [data-slot="basic-tool-tool-info-structured"],
+  [data-component="tool-trigger"] [data-slot="basic-tool-tool-info-main"] {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}

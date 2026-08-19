@@ -15,6 +15,20 @@
   outline: none;
 }
 
+@media (max-width: 767px) {
+  .scroll-view,
+  .scroll-view__viewport {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .scroll-view__viewport {
+    overflow-x: hidden;
+  }
+}
+
 .scroll-view__viewport::-webkit-scrollbar {
   display: none;
 }

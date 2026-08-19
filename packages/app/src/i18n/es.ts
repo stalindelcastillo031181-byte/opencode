@@ -412,6 +412,8 @@ export const dict = {
     "Aquí solo se pueden adjuntar imágenes, archivos PDF o archivos de texto.",
   "prompt.toast.modelAgentRequired.title": "Selecciona un agente y modelo",
   "prompt.toast.modelAgentRequired.description": "Elige un agente y modelo antes de enviar un prompt.",
+  "prompt.toast.modelNoVision.title": "Este modelo no puede ver imágenes",
+  "prompt.toast.modelNoVision.description": "Elige un modelo que admita imágenes antes de enviar este adjunto.",
   "prompt.toast.worktreeCreateFailed.title": "Fallo al crear el árbol de trabajo",
   "prompt.toast.sessionCreateFailed.title": "Fallo al crear la sesión",
   "prompt.toast.shellSendFailed.title": "Fallo al enviar comando de shell",

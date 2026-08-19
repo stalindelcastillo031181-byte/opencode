@@ -313,6 +313,8 @@ export const dict = {
   "prompt.toast.attachmentDuplicate.title": "This file has already been uploaded",
   "prompt.toast.modelAgentRequired.title": "Select an agent and model",
   "prompt.toast.modelAgentRequired.description": "Choose an agent and model before sending a prompt.",
+  "prompt.toast.modelNoVision.title": "This model cannot see images",
+  "prompt.toast.modelNoVision.description": "Choose a model that allows image input before sending this attachment.",
   "prompt.toast.worktreeCreateFailed.title": "Failed to create worktree",
   "prompt.toast.sessionCreateFailed.title": "Failed to create session",
   "prompt.toast.shellSendFailed.title": "Failed to send shell command",

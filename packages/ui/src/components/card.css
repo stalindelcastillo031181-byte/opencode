@@ -113,3 +113,20 @@ body:not([data-new-layout]) [data-component="card"] {
     --card-accent: var(--icon-critical-base) !important;
   }
 }
+
+@media (max-width: 767px) {
+  [data-component="card"] {
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  [data-component="card"]
+    :where([data-card="title"], [data-slot="card-title"], [data-card="description"], [data-slot="card-description"]) {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}

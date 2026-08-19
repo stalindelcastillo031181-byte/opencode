@@ -724,6 +724,78 @@
   width: 100%;
 }
 
+@media (max-width: 767px) {
+  [data-component="assistant-message"],
+  [data-component="user-message"],
+  [data-component="text-part"],
+  [data-component="reasoning-part"],
+  [data-component="tool-part-wrapper"],
+  [data-component="tool-output"],
+  [data-component="bash-output"],
+  [data-component="edit-content"],
+  [data-component="write-content"],
+  [data-component="todos"],
+  [data-component="diagnostics"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  [data-component="user-message"] {
+    [data-slot="user-message-attachments"],
+    [data-slot="user-message-body"] {
+      width: auto;
+      min-width: 0;
+      max-width: min(82%, 64ch);
+      box-sizing: border-box;
+    }
+
+    [data-slot="user-message-text"] {
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
+
+  [data-component="text-part"],
+  [data-component="reasoning-part"],
+  [data-component="tool-output"] {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  [data-component="tool-output"] {
+    white-space: normal;
+
+    pre,
+    code {
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    pre {
+      width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+  }
+
+  [data-component="edit-trigger"],
+  [data-component="write-trigger"],
+  [data-component="question-answers"],
+  [data-component="context-tool-group-trigger"],
+  [data-component="context-tool-group-list"] {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+}
+
 [data-component="dock-prompt"][data-kind="permission"] {
   position: relative;
   display: flex;

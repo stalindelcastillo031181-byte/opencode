@@ -25,14 +25,14 @@ export function SessionComposerRegion(props: {
       ref={controller.setDockRef}
       data-component="session-prompt-dock"
       classList={{
-        "w-full shrink-0 flex flex-col justify-center items-center pb-3 pointer-events-none": true,
+        "w-full min-w-0 max-w-full shrink-0 box-border overflow-x-hidden flex flex-col justify-center items-center pb-3 pointer-events-none": true,
         "bg-v2-background-bg-base": settings.general.newLayoutDesigns(),
         "bg-background-stronger": !settings.general.newLayoutDesigns(),
       }}
     >
       <div
         classList={{
-          "w-full px-3 pointer-events-auto": true,
+          "w-full min-w-0 max-w-full box-border px-3 pointer-events-auto": true,
           "md:max-w-200 md:mx-auto 2xl:max-w-[1000px]": controller.centered(),
         }}
       >

@@ -328,7 +328,10 @@ function SessionProviders(props: ParentProps) {
 
 function SessionRouteFrame(props: ParentProps<{ padded?: boolean }>) {
   return (
-    <div class="relative size-full overflow-hidden flex flex-col" classList={{ "p-2": props.padded }}>
+    <div
+      class="relative size-full min-w-0 max-w-[100vw] overflow-x-hidden overflow-y-hidden box-border flex flex-col"
+      classList={{ "p-2": props.padded }}
+    >
       {props.children}
     </div>
   )
@@ -338,7 +341,7 @@ function SessionPanelFrame(props: ParentProps<{ newLayout: boolean; raised?: boo
   return (
     <div
       classList={{
-        "flex-1 min-h-0 flex flex-col": true,
+        "flex-1 min-h-0 min-w-0 w-full max-w-full overflow-x-hidden box-border flex flex-col": true,
         "bg-v2-background-bg-base": props.newLayout,
         "bg-background-stronger": !props.newLayout,
         "rounded-[10px] overflow-hidden": props.newLayout,

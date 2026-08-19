@@ -16,6 +16,8 @@ import type { Plugin } from "@/plugin"
 import { mergeDeep } from "remeda"
 
 const USER_AGENT = `opencode/${InstallationVersion}`
+const BUILD_DIRECT_RESPONSE =
+  "For conversational or explanatory questions that can be answered from the existing conversation without inspecting or modifying files, answer directly. Do not call tools, start subtasks, or create plans for those requests. Keep full build behavior for requests that require repository inspection, file changes, debugging, testing, or verification."
 
 type PrepareInput = {
   readonly user: SessionV1.User
@@ -58,6 +60,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   const system = [
     [
       ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+      ...(input.agent.name === "build" ? [BUILD_DIRECT_RESPONSE] : []),
       ...input.system,
       ...(input.user.system ? [input.user.system] : []),
     ]

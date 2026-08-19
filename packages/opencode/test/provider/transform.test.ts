@@ -586,6 +586,51 @@ describe("ProviderTransform.options - gpt-5 textVerbosity", () => {
     expect(result.tools.lookup.strict).toBe(false)
   })
 
+  test("build answers conversational requests directly without disabling tools", async () => {
+    const model = createGpt5Model("gpt-5.4")
+    const result = await Effect.runPromise(
+      LLMRequestPrep.prepare({
+        user: {
+          id: "msg_user-test",
+          sessionID,
+          role: "user",
+          time: { created: Date.now() },
+          agent: "build",
+          model: { providerID: model.providerID, modelID: model.id },
+        } as any,
+        sessionID,
+        model,
+        agent: {
+          name: "build",
+          mode: "primary",
+          options: {},
+          permission: [],
+        } as any,
+        system: [],
+        messages: [{ role: "user", content: "What does this term mean?" }],
+        tools: {
+          edit: {
+            description: "Edit a file",
+            inputSchema: jsonSchema({ type: "object", properties: {} }),
+          },
+        },
+        provider: { id: model.providerID, options: {} } as any,
+        auth: undefined,
+        plugin: {
+          trigger: (_name: string, _input: unknown, output: unknown) => Effect.succeed(output),
+          list: () => Effect.succeed([]),
+          init: () => Effect.void,
+        } as any,
+        flags: { outputTokenMax: 32_000, client: "test" } as any,
+        isWorkflow: false,
+      }),
+    )
+
+    expect(result.system.join("\n")).toContain("answer directly")
+    expect(result.system.join("\n")).toContain("Keep full build behavior")
+    expect(result.tools.edit).toBeDefined()
+  })
+
   test("gpt-5.1 should have textVerbosity set to low", () => {
     const model = createGpt5Model("gpt-5.1")
     const result = ProviderTransform.options({ model, sessionID, providerOptions: {} })

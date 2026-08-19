@@ -1110,7 +1110,11 @@ export function MessageTimeline(props: {
           "pt-3": previousAssistantPart(),
         }}
       >
-        <div data-component="session-turn" class="min-w-0 w-full relative" style={{ height: "auto" }}>
+        <div
+          data-component="session-turn"
+          class="min-w-0 w-full max-w-full box-border relative"
+          style={{ height: "auto" }}
+        >
           {input.children}
         </div>
       </div>
@@ -1345,7 +1349,7 @@ export function MessageTimeline(props: {
   }
 
   return (
-    <div class="relative w-full h-full min-w-0">
+    <div class="relative w-full h-full min-w-0 max-w-full overflow-x-hidden box-border">
       <div
         class="absolute left-1/2 -translate-x-1/2 z-[60] pointer-events-none transition-all duration-200 ease-out"
         classList={{
@@ -1410,7 +1414,7 @@ export function MessageTimeline(props: {
         onKeyDown={handleListKeyDown}
         onScroll={handleListScroll}
         onClick={props.onAutoScrollInteraction}
-        class="relative min-w-0 w-full h-full"
+        class="relative min-w-0 w-full max-w-full h-full overflow-x-hidden box-border"
         style={{
           "--sticky-accordion-top": showHeader() ? "48px" : "0px",
         }}

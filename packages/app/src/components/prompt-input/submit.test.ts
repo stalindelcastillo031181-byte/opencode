@@ -32,6 +32,7 @@ const sentPrompts: string[] = []
 const promptInputs: unknown[] = []
 const sentCommands: unknown[] = []
 const commands: Array<{ name: string }> = []
+const toasts: Array<{ title: string; description?: string }> = []
 let serverSessionSyncs = 0
 
 let params: { id?: string } = {}
@@ -134,7 +135,11 @@ beforeAll(async () => {
 
   mock.module("@opencode-ai/ui/toast", () => ({
     Toast: { Region: () => null },
-    showToast: () => 0,
+    toaster: { dismiss: () => undefined },
+    showToast: (input: { title: string; description?: string }) => {
+      toasts.push(input)
+      return 0
+    },
   }))
 
   mock.module("@opencode-ai/core/util/encode", () => ({
@@ -144,7 +149,11 @@ beforeAll(async () => {
   mock.module("@/context/local", () => ({
     useLocal: () => ({
       model: {
-        current: () => ({ id: "model", provider: { id: "provider" } }),
+        current: () => ({
+          id: "model",
+          provider: { id: "provider" },
+          capabilities: { input: { image: true } },
+        }),
         variant: { current: () => variant },
       },
       agent: {
@@ -291,6 +300,7 @@ beforeEach(() => {
   promptInputs.length = 0
   sentCommands.length = 0
   commands.length = 0
+  toasts.length = 0
   promptValue = [{ type: "text", content: "ls", start: 0, end: 2 }]
   params = {}
   search = {}
@@ -564,6 +574,45 @@ describe("prompt submit worktree selection", () => {
         model: { providerID: "draft-provider", modelID: "draft-model", variant: "draft-variant" },
       },
     })
+  })
+
+  test("does not send images to a model without vision", async () => {
+    params = { id: "session-1" }
+    const model = {
+      current: () => ({
+        id: "text-model",
+        provider: { id: "provider" },
+        capabilities: { input: { image: false } },
+      }),
+      variant: { current: () => undefined },
+    } as unknown as ModelSelection
+    const submit = createPromptSubmit({
+      prompt,
+      info: () => ({ id: "session-1" }),
+      imageAttachments: () => [{ type: "image" } as never],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "normal",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+      model,
+    })
+
+    await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+
+    expect(sentPrompts).toHaveLength(0)
+    expect(toasts).toEqual([
+      {
+        title: "prompt.toast.modelNoVision.title",
+        description: "prompt.toast.modelNoVision.description",
+      },
+    ])
   })
 
   test("seeds new sessions before optimistic prompts are added", async () => {
