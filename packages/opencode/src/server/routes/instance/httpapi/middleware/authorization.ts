@@ -99,16 +99,29 @@ function validateRawCredential<A, E, R>(
   effect: Effect.Effect<A, E, R>,
   credential: ServerAuth.DecodedCredentials,
   config: ServerAuth.Info,
+  token?: string,
+  secure?: boolean,
 ) {
-  if (!ServerAuth.required(config)) return effect
-  if (!ServerAuth.authorized(credential, config))
-    return Effect.succeed(
-      HttpServerResponse.empty({
+  return Effect.gen(function* () {
+    if (!ServerAuth.required(config)) return yield* effect
+    if (!ServerAuth.authorized(credential, config))
+      return HttpServerResponse.empty({
         status: UNAUTHORIZED,
         headers: { "www-authenticate": WWW_AUTHENTICATE },
-      }),
-    )
-  return effect
+      })
+    if (token) {
+      yield* HttpEffect.appendPreResponseHandler((_request, response) =>
+        Effect.succeed(
+          HttpServerResponse.setHeader(
+            response,
+            "set-cookie",
+            `${AUTH_TOKEN_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=31536000; SameSite=Strict; HttpOnly${secure ? "; Secure" : ""}`,
+          ),
+        ),
+      )
+    }
+    return yield* effect
+  })
 }
 
 export const authorizationRouterMiddleware = HttpRouter.middleware()(
@@ -121,8 +134,11 @@ export const authorizationRouterMiddleware = HttpRouter.middleware()(
         const request = yield* HttpServerRequest.HttpServerRequest
         const url = new URL(request.url, "http://localhost")
         if (isPublicUIPath(request.method, url.pathname)) return yield* effect
+        const token = url.searchParams.get(AUTH_TOKEN_QUERY) ?? undefined
+        const secure =
+          url.protocol === "https:" || request.headers["x-forwarded-proto"]?.split(",")[0]?.trim() === "https"
         return yield* credentialFromURL(url, request).pipe(
-          Effect.flatMap((credential) => validateRawCredential(effect, credential, config)),
+          Effect.flatMap((credential) => validateRawCredential(effect, credential, config, token, secure)),
         )
       })
   }),

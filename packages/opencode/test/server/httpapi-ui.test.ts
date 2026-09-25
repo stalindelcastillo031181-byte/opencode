@@ -389,7 +389,26 @@ describe("HttpApi UI fallback", () => {
       }).request(`/?auth_token=${btoa("opencode:secret")}`)
 
       expect(response.status).toBe(200)
+      expect(response.headers.get("set-cookie")).toBe(
+        `opencode_auth_token=${encodeURIComponent(btoa("opencode:secret"))}; Path=/; Max-Age=31536000; SameSite=Strict; HttpOnly`,
+      )
       expect(yield* responseText(response)).toBe("<html>opencode</html>")
+    }),
+  )
+
+  it.live("marks the auth cookie secure behind an HTTPS proxy", () =>
+    Effect.gen(function* () {
+      const response = yield* uiApp({
+        password: "secret",
+        username: "opencode",
+        disableEmbeddedWebUi: true,
+        client: httpClient(new Response("<html>opencode</html>")),
+      }).request(`/?auth_token=${btoa("opencode:secret")}`, {
+        headers: { "x-forwarded-proto": "https" },
+      })
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get("set-cookie")).toEndWith("; HttpOnly; Secure")
     }),
   )
 
