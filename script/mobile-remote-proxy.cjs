@@ -12,6 +12,9 @@ function subscribe(){
 }
 subscribe();
 const server = http.createServer((req,res)=>{
+ const supplied=Buffer.from(req.headers.authorization||'');
+ if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){res.writeHead(401,{'cache-control':'no-store'});res.end('Unauthorized');return;}
+
  if(req.url.startsWith('/__opencode_remote/events')){
   const supplied=Buffer.from(req.headers.authorization||'');if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){res.writeHead(401);res.end();return;}
   if(!streamOnline){res.writeHead(503);res.end();return;}
@@ -20,7 +23,8 @@ const server = http.createServer((req,res)=>{
   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({cursor:sequence,frames}));return;
  }
 
- if(req.url.startsWith('/agent')){
+ // Bare /agent (and /agent?query) is OpenCode's agent list; only /agent/* belongs to agent-core.
+ if(req.url.startsWith('/agent/')){
   const urlObj = new URL(req.url, 'http://localhost');
   const agentPath = urlObj.pathname.replace(/^\/agent/, '') || '/';
   const targetPath = agentPath + urlObj.search;
@@ -33,17 +37,30 @@ const server = http.createServer((req,res)=>{
   return;
  }
 
+ if(req.url.startsWith('/antigravity')){
+  const urlObj = new URL(req.url, 'http://localhost');
+  const bridgePath = urlObj.pathname.replace(/^\/antigravity/, '') || '/';
+  const targetPath = bridgePath + urlObj.search;
+  const proxyReq=http.request({hostname:'127.0.0.1',port:4320,path:targetPath,method:req.method,headers:{...req.headers,host:'127.0.0.1:4320'}},r=>{
+   const hdrs={...r.headers};hdrs['cache-control']='no-store';hdrs['access-control-allow-origin']='*';
+   res.writeHead(r.statusCode,hdrs);r.pipe(res);
+  });
+  proxyReq.on('error',()=>{if(!res.headersSent)res.writeHead(503,{'content-type':'application/json'});res.end('{"error":"antigravity-bridge unreachable"}');});
+  req.pipe(proxyReq);res.on('close',()=>proxyReq.destroy());
+  return;
+ }
+
  const upstream=http.request({hostname:'127.0.0.1',port:4096,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:4096'}},r=>{
   const headers={...r.headers};
-  if((headers['content-type']||'').includes('text/event-stream')){
-   headers['content-type']='application/octet-stream';headers['x-opencode-event-stream']='1';headers['cache-control']='no-store, no-transform';headers['content-encoding']='identity';
-  }
-  res.writeHead(r.statusCode,headers);res.flushHeaders();if(headers['x-opencode-event-stream'])res.write(':'+ ' '.repeat(16384)+'\n\n');r.pipe(res);
+  res.writeHead(r.statusCode,headers);res.flushHeaders();r.pipe(res);
  });
  upstream.on('error',()=>{if(!res.headersSent)res.writeHead(503,{'content-type':'application/json'});res.end('{"healthy":false,"connected":false}');});
  req.pipe(upstream);res.on('close',()=>upstream.destroy());
 });
 server.on('upgrade',(req,socket,head)=>{
+ const supplied=Buffer.from(req.headers.authorization||'');
+ if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');return;}
+
  const upstream=http.request({hostname:'127.0.0.1',port:4096,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:4096'}});
  upstream.on('upgrade',(r,peer,data)=>{socket.write(`HTTP/1.1 101 Switching Protocols\r\n${Object.entries(r.headers).map(([k,v])=>`${k}: ${v}`).join('\r\n')}\r\n\r\n`);if(data.length)socket.write(data);if(head.length)peer.write(head);peer.pipe(socket);socket.pipe(peer);socket.on('error',()=>peer.destroy());peer.on('error',()=>socket.destroy());socket.on('close',()=>peer.destroy());});
  upstream.on('response',r=>{socket.end(`HTTP/1.1 ${r.statusCode} Rejected\r\nConnection: close\r\n\r\n`);});upstream.on('error',()=>socket.destroy());upstream.end();

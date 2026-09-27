@@ -1,0 +1,14 @@
+{
+  "name": "opencode-remote-stalin",
+  "main": "src/index.js",
+  "account_id": "730881c9b0751e6b704e92d3ea24d533",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vpc_services": [
+    {
+      "binding": "OPENCODE",
+      "service_id": "01a0d784-6c86-7521-94fa-9cab7966bfaf"
+    }
+  ]
+}
