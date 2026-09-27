@@ -41,7 +41,16 @@ export default {async fetch(request,env) {
  const result=await health(env,token);if(result.status!==200)return reply('Acceso no válido o Mac desconectado',result.status);
  url.searchParams.delete('auth_token');return reply('',303,{'location':url.pathname+url.search,'set-cookie':`${COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict`});}
  if(url.pathname==='/__opencode_remote/status'){
- const result=await health(env,token);return reply(JSON.stringify({connected:result.status===200,healthy:result.status===200,transport:'named-tunnel-vpc',version:result.version}),result.status,{'content-type':'application/json'});}
+ const result=await health(env,token);
+ const body={connected:result.status===200,healthy:result.status===200,transport:'named-tunnel-vpc',version:result.version};
+ // Best-effort: merge the supervisor's own per-component view (opencode/proxy/tunnel/timestamp) so a
+ // caller can tell "the Mac is unreachable" apart from "the Mac answered but the tunnel flapped a minute
+ // ago". Never invents green: if this fetch fails, the fields are simply absent, not defaulted to true.
+ try {
+  const local=await env.OPENCODE.fetch(new Request(ORIGIN+'/__opencode_remote/local-status',{headers:{authorization:'Basic '+token},signal:AbortSignal.timeout(6000)}));
+  if(local.ok){const l=await local.json();body.opencode=l.opencode;body.proxy=l.proxy;body.tunnel=l.tunnel;body.conflicts=l.conflicts??null;body.timestamp=l.timestamp;}
+ } catch {}
+ return reply(JSON.stringify(body),result.status,{'content-type':'application/json'});}
  const target=new URL(url.pathname+url.search,ORIGIN);
  const headers=new Headers(request.headers);headers.set('authorization','Basic '+token);headers.set('origin',ORIGIN);headers.set('x-forwarded-proto','https');headers.delete('cookie');headers.delete('x-opencode-control-token');
  try {

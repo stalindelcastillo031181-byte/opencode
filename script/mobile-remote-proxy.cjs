@@ -1,5 +1,6 @@
 const http = require('node:http');
-const fs=require('node:fs');const crypto=require('node:crypto');
+const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');
+const STATE=path.join(require('node:os').homedir(),'.local/state/opencode-mobile-remote');
 const expected=Buffer.from('Basic '+Buffer.from('opencode:'+fs.readFileSync('/Users/stalindelcasttillo/.config/opencode/mobile-remote-password','utf8').trim()).toString('base64'));
 let events=[],sequence=0,connectedFrame='',streamOnline=false;
 function subscribe(){
@@ -14,6 +15,17 @@ subscribe();
 const server = http.createServer((req,res)=>{
  const supplied=Buffer.from(req.headers.authorization||'');
  if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){res.writeHead(401,{'cache-control':'no-store'});res.end('Unauthorized');return;}
+
+ // Exposes the supervisor's own view of server/proxy/tunnel health (written every 30s to
+ // service-health.json) so the public /__opencode_remote/status endpoint can report real
+ // per-component state instead of only "can I reach something through the proxy".
+ if(req.url==='/__opencode_remote/local-status'){
+  try{
+   const body=fs.readFileSync(path.join(STATE,'service-health.json'),'utf8');
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(body);
+  }catch{res.writeHead(503,{'content-type':'application/json'});res.end('{"error":"health file unavailable"}');}
+  return;
+ }
 
  if(req.url.startsWith('/__opencode_remote/events')){
   const supplied=Buffer.from(req.headers.authorization||'');if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){res.writeHead(401);res.end();return;}
