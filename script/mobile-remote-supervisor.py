@@ -54,7 +54,11 @@ def spawn(name,args,env):
  print(time.strftime('%Y-%m-%dT%H:%M:%S%z')+' '+name+' started (pid '+str(children[name].pid)+')',flush=True)
 def healthy(url,json_key=None):
  try:
-  with urllib.request.urlopen(urllib.request.Request(url,headers={'Authorization':'Basic '+auth,'User-Agent':'curl/8.7.1'}),timeout=8) as r:
+  # 20s (was 8s): under heavy local load the serve can take >8s to answer
+  # /global/health, and the old timeout caused false "health failed 3x" ->
+  # restart loops (and a proxy EADDRINUSE race). Real failures are still
+  # detected, just without mistaking a busy Mac for a dead one.
+  with urllib.request.urlopen(urllib.request.Request(url,headers={'Authorization':'Basic '+auth,'User-Agent':'curl/8.7.1'}),timeout=20) as r:
    return r.status==200 and (bool(json.load(r).get(json_key)) if json_key else True)
  except Exception:return False
 def port_owner_pid(port):
