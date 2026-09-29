@@ -88,7 +88,7 @@ atomic('server-password',password)
 commands={
  'server':([str(ROOT/'packages/opencode/dist/opencode-darwin-x64/bin/opencode'),'serve','--hostname','127.0.0.1','--port','4096'],env),
  'proxy':(['/usr/local/bin/node',str(ROOT/'script/mobile-remote-proxy.cjs')],env),
- 'tunnel':(['/usr/local/bin/cloudflared','tunnel','--no-autoupdate','--protocol','quic','--metrics','127.0.0.1:20496','run','--token-file',str(CONFIG/'mobile-remote-tunnel-token')],None)}
+ 'tunnel':(['/usr/local/bin/cloudflared','tunnel','--no-autoupdate','--protocol','auto','--metrics','127.0.0.1:20496','run','--token-file',str(CONFIG/'mobile-remote-tunnel-token')],None)}
 
 def try_start(name,args,e):
  """Start `name`, unless a healthy instance of it is already listening on its
