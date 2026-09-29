@@ -83,7 +83,7 @@ OWNED_PORTS={
  'proxy':(4097,'http://127.0.0.1:4097/global/health','healthy'),
 }
 
-env=os.environ.copy();env.update(OPENCODE_SERVER_USERNAME='opencode',OPENCODE_SERVER_PASSWORD=password,OPENCODE_DISABLE_CHANNEL_DB='1')
+env=os.environ.copy();env.pop('OPENCODE_DISABLE_CHANNEL_DB',None);env.update(OPENCODE_SERVER_USERNAME='opencode',OPENCODE_SERVER_PASSWORD=password)
 atomic('server-password',password)
 commands={
  'server':([str(ROOT/'packages/opencode/dist/opencode-darwin-x64/bin/opencode'),'serve','--hostname','127.0.0.1','--port','4096'],env),
