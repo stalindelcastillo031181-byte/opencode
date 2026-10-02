@@ -128,6 +128,7 @@ export const dict = {
   "ui.promptInput.placeholder.normal": "Pregunta lo que quieras, {{slash}} para comandos, {{at}} para contexto...",
   "ui.promptInput.add": "Añadir imágenes y archivos",
   "ui.promptInput.attachments": "Imágenes y archivos",
+  "ui.promptInput.camera": "Tomar foto",
   "ui.promptInput.context": "Contexto",
   "ui.promptInput.shell": "Comando de shell",
   "ui.promptInput.chooseAgent": "Elegir agente",

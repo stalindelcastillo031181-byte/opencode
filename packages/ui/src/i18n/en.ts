@@ -131,6 +131,7 @@ export const dict: Record<string, string> = {
   "ui.promptInput.placeholder.normal": "Ask anything, {{slash}} for commands, {{at}} for context...",
   "ui.promptInput.add": "Add images and files",
   "ui.promptInput.attachments": "Images and files",
+  "ui.promptInput.camera": "Take photo",
   "ui.promptInput.context": "Context",
   "ui.promptInput.shell": "Shell command",
   "ui.promptInput.chooseAgent": "Choose agent",

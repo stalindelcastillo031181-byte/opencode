@@ -31,4 +31,5 @@ opencode-dev
 UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
+__pycache__/
 tsconfig.tsbuildinfo

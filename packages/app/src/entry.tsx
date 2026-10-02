@@ -153,7 +153,10 @@ if (root instanceof HTMLElement) {
   void loadInitialLocale().then((locale) => {
     const authToken = new URLSearchParams(location.search).get("auth_token")
     const auth = authFromToken(authToken)
-    if (auth && authToken) document.cookie = authCookieFromToken(authToken, location.protocol === "https:")
+    if (auth && authToken) {
+      document.cookie = authCookieFromToken(authToken, location.protocol === "https:")
+      writeDefaultServerUrl(getCurrentUrl())
+    }
     clearAuthToken()
     const server: ServerConnection.Http = {
       type: "http",
