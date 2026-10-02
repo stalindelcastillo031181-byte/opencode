@@ -10,7 +10,7 @@ case "$script_path" in
 esac
 script_dir="$(cd -- "$(dirname -- "$script_path")" && pwd -P)"
 repo_url="https://github.com/stalindelcastillo031181-byte/opencode.git"
-branch="mac-mobile-remote"
+branch="${OPENCODE_MOBILE_BRANCH:-mac-mobile-remote}"
 
 if [ -n "${OPENCODE_MOBILE_DIR:-}" ]; then
   install_dir="$OPENCODE_MOBILE_DIR"
@@ -326,18 +326,65 @@ esac
 case "$username" in
   ''|*:*|*$'\n'*|*$'\r'*) fail "OPENCODE_SERVER_USERNAME no puede contener ':' ni saltos de línea." ;;
 esac
+git check-ref-format --branch "$branch" >/dev/null 2>&1 ||
+  fail "OPENCODE_MOBILE_BRANCH no es una referencia de rama válida."
 if [ -n "$tunnel_name" ] || [ -n "$public_url" ]; then
   [ -n "$tunnel_name" ] && [ -n "$public_url" ] ||
     fail "OPENCODE_MOBILE_TUNNEL_NAME y OPENCODE_MOBILE_PUBLIC_URL deben configurarse juntos."
-  case "$public_url" in
-    https://*/*|https://*'?'*|https://*'#'*|https://) fail "OPENCODE_MOBILE_PUBLIC_URL debe ser un origen HTTPS sin ruta." ;;
-    https://*) ;;
-    *) fail "OPENCODE_MOBILE_PUBLIC_URL debe ser un origen HTTPS." ;;
+  case "$tunnel_name" in
+    -*|*[!a-zA-Z0-9_-]*) fail "OPENCODE_MOBILE_TUNNEL_NAME debe ser un nombre o ID de túnel." ;;
   esac
+  [[ "$public_url" =~ ^https://[a-zA-Z0-9.-]+(:[0-9]+)?$ ]] ||
+    fail "OPENCODE_MOBILE_PUBLIC_URL debe ser un origen HTTPS sin ruta."
 fi
 
 mkdir -p "$state_dir" "$config_dir"
 chmod 700 "$state_dir" "$config_dir"
+case "${1:-}" in
+  "")
+    ;;
+  --install-service)
+    command -v python3 >/dev/null 2>&1 || fail "Falta python3 para instalar el servicio launchd."
+    agent_dir="$HOME/Library/LaunchAgents"
+    agent_file="$agent_dir/ai.opencode.mobile-remote.plist"
+    mkdir -p "$agent_dir"
+    python3 - "$agent_file" "$script_path" "$install_dir" "$branch" "$port" "$username" "$public_url" "$tunnel_name" "$state_dir" <<'PY'
+import os
+import plistlib
+import sys
+
+agent, script, directory, branch, port, username, url, tunnel, state = sys.argv[1:]
+config = {
+    "Label": "ai.opencode.mobile-remote",
+    "ProgramArguments": ["/bin/bash", script],
+    "RunAtLoad": True,
+    "KeepAlive": True,
+    "ThrottleInterval": 10,
+    "StandardOutPath": os.path.join(state, "launcher.log"),
+    "StandardErrorPath": os.path.join(state, "launcher.log"),
+    "EnvironmentVariables": {
+        "PATH": f"{os.path.expanduser('~')}/.bun/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "OPENCODE_MOBILE_DIR": directory,
+        "OPENCODE_MOBILE_BRANCH": branch,
+        "OPENCODE_MOBILE_PORT": port,
+        "OPENCODE_SERVER_USERNAME": username,
+        "OPENCODE_MOBILE_PUBLIC_URL": url,
+        "OPENCODE_MOBILE_TUNNEL_NAME": tunnel,
+    },
+}
+with open(agent, "wb") as output:
+    plistlib.dump(config, output)
+os.chmod(agent, 0o600)
+PY
+    launchctl bootout "gui/$(id -u)" "$agent_file" >/dev/null 2>&1 || true
+    launchctl bootstrap "gui/$(id -u)" "$agent_file" || fail "No se pudo iniciar el servicio launchd."
+    printf 'Servicio launchd instalado: %s\n' "$agent_file"
+    exit 0
+    ;;
+  *)
+    fail "Uso: $0 [--install-service]"
+    ;;
+esac
 acquire_lock
 
 if [ ! -d "$install_dir/.git" ]; then
