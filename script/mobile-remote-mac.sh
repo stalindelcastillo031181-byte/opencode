@@ -455,19 +455,38 @@ printf 'URL para Safari: %s\n' "$iphone_url"
 printf 'Mantén esta terminal abierta. Control+C detiene el acceso remoto.\n'
 printf 'OpenCode: %s\n' "$binary_version"
 
+server_failures=0
+tunnel_failures=0
 while true; do
   sleep 5
-  if ! kill -0 "$server_pid" 2>/dev/null ||
-    ! curl --fail --silent --max-time 5 -u "$username:$password" "$local_health" >/dev/null; then
+  if kill -0 "$server_pid" 2>/dev/null &&
+    curl --fail --silent --max-time 5 -u "$username:$password" "$local_health" >/dev/null; then
+    server_failures=0
+  else
+    server_failures=$((server_failures + 1))
+  fi
+  if [ "$server_failures" -ge 3 ]; then
     printf 'OpenCode no responde; reiniciando servidor local.\n' >&2
     terminate_child "$server_pid" server
     start_server
+    server_failures=0
+    tunnel_failures=0
   fi
-  if ! kill -0 "$tunnel_pid" 2>/dev/null ||
-    ! curl --fail --silent --max-time 10 -u "$username:$password" "$tunnel_url/global/health" >/dev/null; then
+  if [ "$server_failures" -gt 0 ]; then
+    tunnel_failures=0
+    continue
+  fi
+  if kill -0 "$tunnel_pid" 2>/dev/null &&
+    curl --fail --silent --max-time 10 -u "$username:$password" "$tunnel_url/global/health" >/dev/null; then
+    tunnel_failures=0
+  else
+    tunnel_failures=$((tunnel_failures + 1))
+  fi
+  if [ "$tunnel_failures" -ge 3 ]; then
     printf 'Túnel no responde; publicando una nueva URL.\n' >&2
     terminate_child "$tunnel_pid" tunnel
     start_tunnel
+    tunnel_failures=0
     printf 'Nueva URL para Safari: %s\n' "$iphone_url"
   fi
 done
