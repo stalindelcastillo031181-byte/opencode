@@ -79,22 +79,38 @@ export function createHomeSessionsController(home: HomeController) {
     refetchOnMount: true,
     refetchOnReconnect: true,
   }))
-  const indexedSessions = createMemo(() =>
-    retainHomeSessions(
-      homeSessions().sessions(sessionLoad.data, sessionEventLoad.data),
-      HOME_SESSION_LIMIT,
-      Date.now(),
-    ),
-  )
+  const indexedSessions = createMemo(() => {
+    const all = homeSessions().sessions(sessionLoad.data, sessionEventLoad.data)
+    const recent = retainHomeSessions(all, HOME_SESSION_LIMIT, Date.now())
+    const recentIDs = new Set(recent.map((session) => session.id))
+    const open = new Set(
+      tabs.store.flatMap((tab) =>
+        tab.type === "session" && tab.server === home.selection.value().server ? [tab.sessionId] : [],
+      ),
+    )
+    return [...recent, ...all.filter((session) => open.has(session.id) && !recentIDs.has(session.id))]
+  })
   const allRecords = createMemo(() =>
     buildHomeSessionRecords({
       sessions: indexedSessions,
       projectDirectories,
+      scoped: () => !!home.project.selected(),
       projects: home.project.list,
       projectByID,
+      openSessionIDs: () =>
+        new Set(
+          tabs.store.flatMap((tab) =>
+            tab.type === "session" && tab.server === home.selection.value().server ? [tab.sessionId] : [],
+          ),
+        ),
     }),
   )
-  const records = createMemo(() => allRecords().slice(0, HOME_SESSION_LIMIT))
+  const records = createMemo(() =>
+    allRecords().filter(
+      (record, index) =>
+        index < HOME_SESSION_LIMIT || sessionHasOpenTab(tabs.store, home.selection.value().server, record.session),
+    ),
+  )
   const groups = createMemo(() => groupSessions(records(), language))
   const prefetched = new Set<string>()
 
@@ -248,11 +264,16 @@ function directories(project: LocalProject) {
 function buildHomeSessionRecords(input: {
   sessions: () => Session[]
   projectDirectories: () => string[]
+  scoped: () => boolean
   projects: () => LocalProject[]
   projectByID: () => Map<string, LocalProject>
+  openSessionIDs: () => Set<string>
 }) {
   const directories = new Set(input.projectDirectories().map(pathKey))
-  const sessions = input.sessions().filter((session) => directories.has(pathKey(session.directory)))
+  const open = input.openSessionIDs()
+  const sessions = input
+    .sessions()
+    .filter((session) => !input.scoped() || directories.has(pathKey(session.directory)) || open.has(session.id))
   return [...new Map(sessions.map((session) => [session.id, session] as const)).values()]
     .sort(compareSessionTime)
     .flatMap((session) => {
@@ -263,7 +284,9 @@ function buildHomeSessionRecords(input: {
           .find(
             (item) =>
               pathKey(item.worktree) === directory || item.sandboxes?.some((sandbox) => pathKey(sandbox) === directory),
-          ) ?? projectForSession(session, input.projects(), input.projectByID())
+          ) ??
+        projectForSession(session, input.projects(), input.projectByID()) ??
+        (!input.scoped() || open.has(session.id) ? { worktree: session.directory, expanded: true } : undefined)
       if (!project) return []
       return { session, project, projectName: displayName(project) }
     })
