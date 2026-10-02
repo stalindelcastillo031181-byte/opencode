@@ -24,6 +24,8 @@ state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/opencode-mobile-remote"
 config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 port="${OPENCODE_MOBILE_PORT:-4096}"
 username="${OPENCODE_SERVER_USERNAME:-opencode}"
+public_url="${OPENCODE_MOBILE_PUBLIC_URL:-}"
+tunnel_name="${OPENCODE_MOBILE_TUNNEL_NAME:-}"
 password_file="$config_dir/mobile-remote-password"
 server_log="$state_dir/server.log"
 build_log="$state_dir/build.log"
@@ -74,6 +76,12 @@ server_process_matches() {
 tunnel_process_matches() {
   local command
   command="$(process_command "$1")"
+  if [ -n "$tunnel_name" ]; then
+    case "$command" in
+      *cloudflared*tunnel*--no-autoupdate*"run $tunnel_name"*) return 0 ;;
+    esac
+    return 1
+  fi
   case "$command" in
     *cloudflared*tunnel*--url*"http://127.0.0.1:$port"*) return 0 ;;
     *) return 1 ;;
@@ -263,6 +271,9 @@ verify_login() {
   local headers=""
   local body=""
   local cookies=""
+  if [ -n "$verify_dir" ]; then
+    rm -rf "$verify_dir"
+  fi
   verify_dir="$(mktemp -d "$state_dir/verify.XXXXXX")"
   chmod 700 "$verify_dir"
   headers="$verify_dir/headers"
@@ -315,6 +326,15 @@ esac
 case "$username" in
   ''|*:*|*$'\n'*|*$'\r'*) fail "OPENCODE_SERVER_USERNAME no puede contener ':' ni saltos de línea." ;;
 esac
+if [ -n "$tunnel_name" ] || [ -n "$public_url" ]; then
+  [ -n "$tunnel_name" ] && [ -n "$public_url" ] ||
+    fail "OPENCODE_MOBILE_TUNNEL_NAME y OPENCODE_MOBILE_PUBLIC_URL deben configurarse juntos."
+  case "$public_url" in
+    https://*/*|https://*'?'*|https://*'#'*|https://) fail "OPENCODE_MOBILE_PUBLIC_URL debe ser un origen HTTPS sin ruta." ;;
+    https://*) ;;
+    *) fail "OPENCODE_MOBILE_PUBLIC_URL debe ser un origen HTTPS." ;;
+  esac
+fi
 
 mkdir -p "$state_dir" "$config_dir"
 chmod 700 "$state_dir" "$config_dir"
@@ -390,38 +410,83 @@ if lsof -nP -a -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
   fail "El puerto $port está ocupado por un proceso no gestionado por este launcher. Revisa: lsof -nP -iTCP:$port -sTCP:LISTEN"
 fi
 
-: > "$server_log"
-chmod 600 "$server_log"
-OPENCODE_SERVER_USERNAME="$username" \
-OPENCODE_SERVER_PASSWORD="$password" \
-  "$binary" serve --hostname 127.0.0.1 --port "$port" > "$server_log" 2>&1 &
-server_pid=$!
-printf '%s\n' "$server_pid" > "$server_pid_file"
-wait_for_server
-unauth_status="$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code}' "$local_health" || true)"
-[ "$unauth_status" = "401" ] || fail "El health local sin credenciales no está protegido (HTTP $unauth_status)."
-verify_local_bind
+start_server() {
+  : > "$server_log"
+  chmod 600 "$server_log"
+  OPENCODE_SERVER_USERNAME="$username" \
+  OPENCODE_SERVER_PASSWORD="$password" \
+    "$binary" serve --hostname 127.0.0.1 --port "$port" > "$server_log" 2>&1 &
+  server_pid=$!
+  printf '%s\n' "$server_pid" > "$server_pid_file"
+  wait_for_server
+  unauth_status="$(curl --silent --show-error --max-time 5 -o /dev/null -w '%{http_code}' "$local_health" || true)"
+  [ "$unauth_status" = "401" ] || fail "El health local sin credenciales no está protegido (HTTP $unauth_status)."
+  verify_local_bind
+}
 
-: > "$tunnel_log"
-chmod 600 "$tunnel_log"
-cloudflared tunnel --no-autoupdate --protocol http2 --url "http://127.0.0.1:$port" > "$tunnel_log" 2>&1 &
-tunnel_pid=$!
-printf '%s\n' "$tunnel_pid" > "$tunnel_pid_file"
-wait_for_tunnel_url
-wait_for_public_health
-verify_public_auth
-iphone_url="${tunnel_url}/?auth_token=${auth_token_url}"
-verify_login
-printf '%s\n' "$iphone_url" > "$url_file"
-chmod 600 "$url_file"
+start_tunnel() {
+  : > "$tunnel_log"
+  chmod 600 "$tunnel_log"
+  if [ -n "$tunnel_name" ]; then
+    cloudflared tunnel --no-autoupdate run "$tunnel_name" > "$tunnel_log" 2>&1 &
+  else
+    cloudflared tunnel --no-autoupdate --protocol http2 --url "http://127.0.0.1:$port" > "$tunnel_log" 2>&1 &
+  fi
+  tunnel_pid=$!
+  printf '%s\n' "$tunnel_pid" > "$tunnel_pid_file"
+  if [ -n "$tunnel_name" ]; then
+    tunnel_url="$public_url"
+  else
+    wait_for_tunnel_url
+  fi
+  wait_for_public_health
+  verify_public_auth
+  iphone_url="${tunnel_url}/?auth_token=${auth_token_url}"
+  verify_login
+  printf '%s\n' "$iphone_url" > "$url_file"
+  chmod 600 "$url_file"
+}
+
+start_server
+start_tunnel
 
 printf '\nOpenCode móvil listo.\n'
 printf 'URL para Safari: %s\n' "$iphone_url"
 printf 'Mantén esta terminal abierta. Control+C detiene el acceso remoto.\n'
 printf 'OpenCode: %s\n' "$binary_version"
 
-wait_status=0
-wait "$tunnel_pid" || wait_status=$?
-if [ "$wait_status" -ne 0 ]; then
-  fail "El túnel terminó con error. Log: $tunnel_log"
-fi
+server_failures=0
+tunnel_failures=0
+while true; do
+  sleep 5
+  if kill -0 "$server_pid" 2>/dev/null &&
+    curl --fail --silent --max-time 5 -u "$username:$password" "$local_health" >/dev/null; then
+    server_failures=0
+  else
+    server_failures=$((server_failures + 1))
+  fi
+  if [ "$server_failures" -ge 3 ]; then
+    printf 'OpenCode no responde; reiniciando servidor local.\n' >&2
+    terminate_child "$server_pid" server
+    start_server
+    server_failures=0
+    tunnel_failures=0
+  fi
+  if [ "$server_failures" -gt 0 ]; then
+    tunnel_failures=0
+    continue
+  fi
+  if kill -0 "$tunnel_pid" 2>/dev/null &&
+    curl --fail --silent --max-time 10 -u "$username:$password" "$tunnel_url/global/health" >/dev/null; then
+    tunnel_failures=0
+  else
+    tunnel_failures=$((tunnel_failures + 1))
+  fi
+  if [ "$tunnel_failures" -ge 3 ]; then
+    printf 'Túnel no responde; publicando una nueva URL.\n' >&2
+    terminate_child "$tunnel_pid" tunnel
+    start_tunnel
+    tunnel_failures=0
+    printf 'Nueva URL para Safari: %s\n' "$iphone_url"
+  fi
+done

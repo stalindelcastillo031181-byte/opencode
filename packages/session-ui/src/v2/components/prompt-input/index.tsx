@@ -51,6 +51,7 @@ export function PromptInputV2(props: PromptInputV2Props) {
   const state = props.controller.state
   const view = props.controller.view
   let editor: HTMLDivElement | undefined
+  let cameraInput: HTMLInputElement | undefined
   let localInput = false
   const updateCursor = () => {
     if (!editor || !window.getSelection()?.isCollapsed) return
@@ -80,6 +81,18 @@ export function PromptInputV2(props: PromptInputV2Props) {
         type="file"
         multiple
         accept="image/png,image/jpeg,image/gif,image/webp,application/pdf,text/*,application/json,application/ld+json,application/toml,application/x-toml,application/x-yaml,application/xml,application/yaml,.c,.cc,.cjs,.conf,.cpp,.css,.csv,.cts,.env,.go,.gql,.graphql,.h,.hh,.hpp,.htm,.html,.ini,.java,.js,.json,.jsx,.log,.md,.mdx,.mjs,.mts,.py,.rb,.rs,.sass,.scss,.sh,.sql,.toml,.ts,.tsx,.txt,.xml,.yaml,.yml,.zsh"
+        class="hidden"
+        onChange={(event) => {
+          const list = event.currentTarget.files
+          if (list) props.controller.addAttachments(Array.from(list))
+          event.currentTarget.value = ""
+        }}
+      />
+      <input
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
         class="hidden"
         onChange={(event) => {
           const list = event.currentTarget.files
@@ -170,12 +183,14 @@ export function PromptInputV2(props: PromptInputV2Props) {
               props.controller.onInput(prompt.map((part) => part.content).join(""), [...prompt, ...images], cursor)
             }}
             onKeyDown={(event) => {
-              if (props.controller.onKeyDown(event)) return
               if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
                 event.preventDefault()
-                if (event.repeat) return
+                event.stopPropagation()
+                if (event.repeat || props.disabled || props.readOnly || !props.controller.canSubmit()) return
                 props.controller.submit()
+                return
               }
+              if (props.controller.onKeyDown(event)) return
             }}
             onKeyUp={updateCursor}
             onPointerUp={updateCursor}
@@ -207,11 +222,13 @@ export function PromptInputV2(props: PromptInputV2Props) {
               title={i18n.t("ui.promptInput.add")}
               keybind={props.attachKeybind ?? ["Mod", "U"]}
               attachLabel={i18n.t("ui.promptInput.attachments")}
+              cameraLabel={i18n.t("ui.promptInput.camera")}
               attachShortcut={props.attachShortcut ?? "Mod+U"}
               commandsLabel={i18n.t("ui.promptInput.commands")}
               contextLabel={i18n.t("ui.promptInput.context")}
               shellLabel={i18n.t("ui.promptInput.shell")}
               onAttach={props.controller.attach}
+              onCamera={() => cameraInput?.click()}
               onCommands={props.controller.openCommands}
               onContext={props.controller.openContext}
               onShell={props.controller.openShell}
@@ -472,11 +489,13 @@ export function PromptInputV2AddMenu(props: {
   title: string
   keybind?: string[]
   attachLabel: string
+  cameraLabel: string
   attachShortcut?: string
   commandsLabel: string
   contextLabel: string
   shellLabel: string
   onAttach: () => void
+  onCamera: () => void
   onCommands: () => void
   onContext: () => void
   onShell: () => void
@@ -507,6 +526,7 @@ export function PromptInputV2AddMenu(props: {
             <MenuV2.Item onSelect={props.onAttach} shortcut={props.attachShortcut}>
               {props.attachLabel}
             </MenuV2.Item>
+            <MenuV2.Item onSelect={props.onCamera}>{props.cameraLabel}</MenuV2.Item>
             <MenuV2.Separator />
             <MenuV2.Item onSelect={props.onCommands} shortcut="/">
               {props.commandsLabel}
