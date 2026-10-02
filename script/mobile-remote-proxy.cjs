@@ -77,4 +77,4 @@ server.on('upgrade',(req,socket,head)=>{
  upstream.on('upgrade',(r,peer,data)=>{socket.write(`HTTP/1.1 101 Switching Protocols\r\n${Object.entries(r.headers).map(([k,v])=>`${k}: ${v}`).join('\r\n')}\r\n\r\n`);if(data.length)socket.write(data);if(head.length)peer.write(head);peer.pipe(socket);socket.pipe(peer);socket.on('error',()=>peer.destroy());peer.on('error',()=>socket.destroy());socket.on('close',()=>peer.destroy());});
  upstream.on('response',r=>{socket.end(`HTTP/1.1 ${r.statusCode} Rejected\r\nConnection: close\r\n\r\n`);});upstream.on('error',()=>socket.destroy());upstream.end();
 });
-server.listen(4097,'127.0.0.1');
+server.listen(4097,'0.0.0.0');
