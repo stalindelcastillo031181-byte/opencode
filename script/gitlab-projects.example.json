@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "root": "/Users/USUARIO/GitLab",
+  "projects": [
+    {
+      "name": "control-remoto-ia",
+      "path": "grupo/proyecto-control-remoto",
+      "url": "https://gitlab.com/grupo/proyecto-control-remoto.git",
+      "branch": "main",
+      "dir": "/Users/USUARIO/GitLab/CONTROL REMOTO IA"
+    },
+    {
+      "name": "otro-proyecto",
+      "path": "usuario/otro-proyecto",
+      "url": "https://gitlab.com/usuario/otro-proyecto.git",
+      "branch": "main"
+    },
+    {
+      "name": "clon-existente",
+      "path": "usuario/clon-existente",
+      "url": "https://gitlab.com/usuario/clon-existente.git",
+      "dir": "/Users/USUARIO/ruta/de/un/clon/que/ya/tienes",
+      "selector": true
+    }
+  ]
+}

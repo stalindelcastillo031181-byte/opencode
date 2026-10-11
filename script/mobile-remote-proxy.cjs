@@ -1,10 +1,12 @@
 const http = require('node:http');
 const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');
-const STATE=path.join(require('node:os').homedir(),'.local/state/opencode-mobile-remote');
-const expected=Buffer.from('Basic '+Buffer.from('opencode:'+fs.readFileSync('/Users/stalindelcasttillo/.config/opencode/mobile-remote-password','utf8').trim()).toString('base64'));
+const STATE=process.env.OPENCODE_REMOTE_STATE_DIR||path.join(require('node:os').homedir(),'.local/state/opencode-mobile-remote');
+const UP=Number(process.env.OPENCODE_REMOTE_UPSTREAM_PORT||4096);
+const expected=Buffer.from('Basic '+Buffer.from('opencode:'+fs.readFileSync(process.env.OPENCODE_REMOTE_PASSWORD_FILE||'/Users/stalindelcasttillo/.config/opencode/mobile-remote-password','utf8').trim()).toString('base64'));
 let events=[],sequence=0,connectedFrame='',streamOnline=false;
+let gl=null;try{gl=require('./gitlab-projects.cjs')}catch(e){console.error('[gitlab-projects] desactivado:',e&&e.message)}
 function subscribe(){
- const request=http.get({hostname:'127.0.0.1',port:4096,path:'/global/event',headers:{authorization:expected.toString()}},r=>{
+ const request=http.get({hostname:'127.0.0.1',port:UP,path:'/global/event',headers:{authorization:expected.toString()}},r=>{
   if(r.statusCode!==200){r.resume();setTimeout(subscribe,2000);return;}
   streamOnline=true;let pending='';r.setEncoding('utf8');
   r.on('data',chunk=>{pending+=chunk;let end;while((end=pending.indexOf('\n\n'))>=0){const frame=pending.slice(0,end+2);pending=pending.slice(end+2);if(frame.includes('server.connected'))connectedFrame=frame;events.push({id:++sequence,frame});if(events.length>2000)events.shift();}});
@@ -27,6 +29,7 @@ const server = http.createServer((req,res)=>{
   return;
  }
 
+ if(gl&&req.url.startsWith('/__opencode_remote/gitlab-')){try{if(gl.handle(req,res))return;}catch{}}
  if(req.url.startsWith('/__opencode_remote/events')){
   const supplied=Buffer.from(req.headers.authorization||'');if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){res.writeHead(401);res.end();return;}
   if(!streamOnline){res.writeHead(503);res.end();return;}
@@ -62,7 +65,8 @@ const server = http.createServer((req,res)=>{
   return;
  }
 
- const upstream=http.request({hostname:'127.0.0.1',port:4096,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:4096'}},r=>{
+ if(gl&&gl.wantsHtml(req)){try{if(gl.proxyHtml(req,res,{hostname:'127.0.0.1',port:UP,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:'+UP}}))return;}catch{}}
+ const upstream=http.request({hostname:'127.0.0.1',port:UP,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:'+UP}},r=>{
   const headers={...r.headers};
   res.writeHead(r.statusCode,headers);res.flushHeaders();r.pipe(res);
  });
@@ -73,8 +77,9 @@ server.on('upgrade',(req,socket,head)=>{
  const supplied=Buffer.from(req.headers.authorization||'');
  if(supplied.length!==expected.length||!crypto.timingSafeEqual(supplied,expected)){socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');return;}
 
- const upstream=http.request({hostname:'127.0.0.1',port:4096,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:4096'}});
+ const upstream=http.request({hostname:'127.0.0.1',port:UP,path:req.url,method:req.method,headers:{...req.headers,host:'127.0.0.1:'+UP}});
  upstream.on('upgrade',(r,peer,data)=>{socket.write(`HTTP/1.1 101 Switching Protocols\r\n${Object.entries(r.headers).map(([k,v])=>`${k}: ${v}`).join('\r\n')}\r\n\r\n`);if(data.length)socket.write(data);if(head.length)peer.write(head);peer.pipe(socket);socket.pipe(peer);socket.on('error',()=>peer.destroy());peer.on('error',()=>socket.destroy());socket.on('close',()=>peer.destroy());});
  upstream.on('response',r=>{socket.end(`HTTP/1.1 ${r.statusCode} Rejected\r\nConnection: close\r\n\r\n`);});upstream.on('error',()=>socket.destroy());upstream.end();
 });
-server.listen(4097,'0.0.0.0');
+server.listen(Number(process.env.OPENCODE_REMOTE_PORT||4097),process.env.OPENCODE_REMOTE_BIND||'0.0.0.0');
+if(gl)try{gl.start()}catch{}
