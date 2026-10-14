@@ -465,6 +465,57 @@ export function Session() {
 
   const sessionCommandList = createMemo(() => [
     {
+      title: "Control remoto OpenCode",
+      value: "session.remote-control",
+      suggested: route.type === "session",
+      category: "Session",
+      slash: {
+        name: "cro",
+      },
+      run: async () => {
+        dialog.clear()
+        toast.show({ message: "Activando control remoto…", variant: "info", duration: 60_000 })
+        const launcher =
+          process.env.OPENCODE_CRO_LAUNCHER ??
+          path.join(process.env.HOME ?? "", "opencode-mobile-fixed", "script", "mobile-remote-start.sh")
+        try {
+          const proc = Bun.spawn([launcher], {
+            cwd: project.instance.path().worktree,
+            env: {
+              ...process.env,
+              OPENCODE_REMOTE_DIRECTORY: session()?.directory ?? project.instance.path().directory,
+              OPENCODE_REMOTE_SESSION_ID: route.sessionID,
+            },
+            stdout: "pipe",
+            stderr: "pipe",
+          })
+          const [output, failure, exit] = await Promise.all([
+            new Response(proc.stdout).text(),
+            new Response(proc.stderr).text(),
+            proc.exited,
+          ])
+          const url = output.match(/https:\/\/\S+/)?.[0]
+          if (exit !== 0 || !url) {
+            const message = failure.trim() || "No se pudo crear el enlace remoto."
+            toast.show({ message, variant: "error", duration: 5000 })
+            await DialogAlert.show(dialog, "Control remoto", message)
+            return
+          }
+          await clipboard.write?.(url)
+          toast.show({ message: "Control remoto listo; enlace copiado.", variant: "success", duration: 5000 })
+          await DialogAlert.show(
+            dialog,
+            "Control remoto listo",
+            `Abre este enlace en el iPhone. Ya está copiado:\n\n${url}\n\nEl Mac debe permanecer encendido.`,
+          )
+        } catch (error) {
+          const message = errorMessage(error)
+          toast.show({ message, variant: "error", duration: 5000 })
+          await DialogAlert.show(dialog, "Control remoto", message)
+        }
+      },
+    },
+    {
       title: session()?.share?.url ? "Copy share link" : "Share session",
       value: "session.share",
       suggested: route.type === "session",

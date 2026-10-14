@@ -130,6 +130,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const tabs = () => props.controls.session.tabs
   let editorRef!: HTMLDivElement
   let fileInputRef: HTMLInputElement | undefined
+  let cameraInputRef: HTMLInputElement | undefined
   let scrollRef!: HTMLDivElement
   let slashPopoverRef!: HTMLDivElement
   let restoreEndOnFocus = true
@@ -1573,6 +1574,18 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 e.currentTarget.value = ""
               }}
             />
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              class="hidden"
+              onChange={(e) => {
+                const list = e.currentTarget.files
+                if (list) void addAttachments(Array.from(list))
+                e.currentTarget.value = ""
+              }}
+            />
 
             <div class="flex items-center gap-1 pointer-events-auto">
               <Tooltip placement="top" inactive={!working() && blank()} value={tip()}>
@@ -1603,19 +1616,34 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                 title={language.t("prompt.action.attachFile")}
                 keybind={command.keybind("file.attach")}
               >
-                <Button
-                  data-action="prompt-attach"
-                  type="button"
-                  variant="ghost"
-                  class="size-8 p-0"
-                  style={buttons()}
-                  onClick={pick}
-                  disabled={store.mode !== "normal"}
-                  tabIndex={store.mode === "normal" ? undefined : -1}
-                  aria-label={language.t("prompt.action.attachFile")}
-                >
-                  <Icon name="plus" class="size-4.5" />
-                </Button>
+                <div class="flex items-center gap-1">
+                  <Button
+                    data-action="prompt-attach"
+                    type="button"
+                    variant="ghost"
+                    class="size-8 p-0"
+                    style={buttons()}
+                    onClick={pick}
+                    disabled={store.mode !== "normal"}
+                    tabIndex={store.mode === "normal" ? undefined : -1}
+                    aria-label={language.t("prompt.action.attachFile")}
+                  >
+                    <Icon name="plus" class="size-4.5" />
+                  </Button>
+                  <Button
+                    data-action="prompt-camera"
+                    type="button"
+                    variant="ghost"
+                    class="h-8 px-2 text-12-medium"
+                    style={buttons()}
+                    onClick={() => cameraInputRef?.click()}
+                    disabled={store.mode !== "normal"}
+                    tabIndex={store.mode === "normal" ? undefined : -1}
+                    aria-label="Tomar foto"
+                  >
+                    Cámara
+                  </Button>
+                </div>
               </TooltipKeybind>
             </div>
           </div>

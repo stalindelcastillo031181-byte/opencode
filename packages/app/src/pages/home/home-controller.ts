@@ -22,7 +22,20 @@ export function createHomeController() {
     return global.ensureServerCtx(conn)
   })
   const focusedSync = () => focusedServerCtx()?.sync ?? sync()
-  const projects = createMemo(() => focusedServerCtx()?.projects.list() ?? layout.projects.list())
+  // Fresh devices have no locally opened projects yet. Fall back to the
+  // server-reported project list so home shows real sessions instead of an
+  // empty state. Once the user opens or closes projects locally, their
+  // explicit choice wins again.
+  const serverProjects = createMemo(() =>
+    focusedSync().data.project.map((project) => ({ ...project, expanded: true })),
+  )
+  const projects = createMemo(() => {
+    const opened = focusedServerCtx()?.projects.list() ?? layout.projects.list()
+    if (opened.length > 0) return opened
+    const closed = focusedServerCtx()?.projects.recentlyClosed() ?? layout.projects.recentlyClosed()
+    if (closed.length > 0) return opened
+    return serverProjects()
+  })
   const recentlyClosed = createMemo(
     () => focusedServerCtx()?.projects.recentlyClosed() ?? layout.projects.recentlyClosed(),
   )

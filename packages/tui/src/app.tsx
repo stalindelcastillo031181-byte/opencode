@@ -833,6 +833,29 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         category: "System",
       },
       {
+        name: "remote.rc",
+        title: "Activate remote control (RC)",
+        slashName: "rc",
+        category: "Remote",
+        run: () => {
+          const sessionID = route.data.type === "session" ? route.data.sessionID : undefined
+          if (!sessionID) {
+            toast.show({ message: "RC: open a session first", variant: "error" })
+            dialog.clear()
+            return
+          }
+          const session = sync.session.get(sessionID)
+          const title = session?.title ?? sessionID.slice(0, 8)
+          const remoteURL = "https://opencode-remote-stalin.pages.dev"
+          toast.show({
+            title: "Remote ACTIVE",
+            message: `${title}\n${remoteURL}`,
+            variant: "success",
+          })
+          dialog.clear()
+        },
+      },
+      {
         name: "app.debug",
         title: "Toggle debug panel",
         category: "System",
